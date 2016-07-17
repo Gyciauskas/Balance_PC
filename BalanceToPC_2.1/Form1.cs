@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
+using System;
 using System.IO.Ports;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace BalanceToPC_2._1
@@ -61,12 +54,11 @@ namespace BalanceToPC_2._1
             #region Form stuff
             Scales = new System.Drawing.Icon("_scale.ico");
 
-            // Create notify icons, assign scale icon and show it
+            // Sukurti įkoną, priskirti svarstyklių logotipą
             BalanceIcon = new NotifyIcon();
             BalanceIcon.Icon = Scales;
             BalanceIcon.Visible = true;
 
-            // Create all context items and add them to notification icon
             System.Windows.Forms.MenuItem ProgNameItem = new System.Windows.Forms.MenuItem("Apie \"BalancePC\"");
             System.Windows.Forms.MenuItem QuitMenuItem = new System.Windows.Forms.MenuItem("Uždaryti programą");
             ContextMenu ContxMenu = new ContextMenu();
@@ -78,21 +70,21 @@ namespace BalanceToPC_2._1
             QuitMenuItem.Click += QuitMenuItem_Click;
             ProgNameItem.Click += ProgNameItem_Click;
 
-            // Hide the Form, because we don't need it.
+            // Paslėpti WinForm'ą, mums ji nereikalinga
             this.WindowState = FormWindowState.Minimized;
             this.ShowInTaskbar = false;
 
             BalanceIcon.MouseClick += new MouseEventHandler(PerformanceIcon_MouseClick);
             #endregion
 
-            // configurate thread
+            // konfiguruoti thread'ą
             Thread MainThread = new Thread(new ThreadStart(MainProgramThread));
 
-            // By default, thread is foreground. Change to background (background threadas issijunge kartu su application.exit, kur foreground ne)
+            // By default, thread is foreground. Change to background (background thread'as išsijungia kartu su application.exit())
             MainThread.IsBackground = true;
             MainThread.Start();
 
-            //initialized port and rx data state
+            //Inicializuoti state'us
             CurrPortState = PortState.CheckFiles;
             DataReceiv_st = RxState.Start;
         }
@@ -105,7 +97,7 @@ namespace BalanceToPC_2._1
             BalanceParam.Port = "";
             BalanceParam.CupWeight = 0.0f;
 
-            // Start login
+            // Pradėti logą
             Log = new Logger();
 
             while (true)
@@ -118,14 +110,14 @@ namespace BalanceToPC_2._1
                             Func_answer = GetProgramParamValues();
 
                             if (Func_answer == Const.NotFoundParamFile)
-                                // File not found, inform user about it and close aplication
+                                // Nustatymų failas nerastas, informuoti vartotoją bei išjungti programą
                                 Inform_ShuttDownPrgm("Parametrų failas nerastas: " + Const.ConfigFile);
                             else
                                 CurrPortState = PortState.Start;
                         }
                         catch (ArgumentException ex)
                         {
-                            // Jeigu neranda nustatymu, tuomet pereina i waitparam state koki ir laukia kol juos gaus is nustatymu. O ten kai gaus jau, tuomet pereis i vel pradini state.
+                            // Jeigu neranda nustatymų faile, tuomet pereiti i WaitParam state ir laukti kol juos gaus iš nustatymų lango.
                             if (ex.ParamName.Equals("Empty COM port"))
                             {
                                 MessageBoxCreator("Neįrašytas COM portas nustatymuose.", "Klaida", MessageBoxIcon.Warning);
@@ -146,7 +138,7 @@ namespace BalanceToPC_2._1
                         }
                         break;
 
-                    // Laukti iki kol vartotojas įrašys COM portą nustatymuose.
+                    // Laukti iki kol vartotojas įrašys COM portą/neteisingą taurelės svorį nustatymuose.
                     case PortState.WaitParam:
                         break;
 
@@ -204,7 +196,7 @@ namespace BalanceToPC_2._1
                     case PortState.PortAccessDenied:
                         try
                         {
-                            // Try again connect to port and inform user
+                            // Mėginti iš naujo jungtis į COM portą
                             Func_answer = ConnectToPort(BalanceParam.Port);
 
                             if (Func_answer == Const.Connected)
@@ -252,14 +244,14 @@ namespace BalanceToPC_2._1
                         }
                         break;
                 }
-                // Sleep for 1s
+                // Miegoti 1s
                 Thread.Sleep(1000);
             }
         }
 
         /// <summary>
-        ///     Paspaudus svartykliu ikona kairiu peles klavisu, issoks windows form langas su nustatymais.
-        ///     Taciau pries atidarant langa, reikia atnaujinti visus esamus COM portus, taureles svori, bei AutoENTER busena.
+        ///     Paspaudus svartyklių ikoną kairiu pelės klavišu, iššoks WinForm langas su nustatymais.
+        ///     Tačiau prieš atidarant langą, reikia atnaujinti visus esamus COM portus, taurelės svorį, bei AutoENTER būseną.
         /// </summary>
         private void PerformanceIcon_MouseClick(object sender, MouseEventArgs e)
         {
@@ -270,11 +262,11 @@ namespace BalanceToPC_2._1
                     this.Show();
                     this.WindowState = FormWindowState.Normal;
 
-                    // Pirma, istriname visas buvusias reiksmes.
+                    // Pirma, ištriname buvusias reikšmes
                     ComPortsList.Items.Clear();
                     CupWeight.Text = String.Empty;
 
-                    // Surasome reikmes
+                    // Surašome naujas reikšmes
                     string[] ports = SerialPort.GetPortNames();
 
                     if (ports != null || ports.Length != 0)
@@ -314,7 +306,9 @@ namespace BalanceToPC_2._1
         {
             try
             {
-                // Close balance serial port, before shutt down. It could throw exception if before shutt down program, you throw cable.
+                // Jei programa būtų prijungta prie įšorinio virtualaus COM porto
+                // Ir prieš išjungiant programą būtų pirma ištrauktas laidas, uždarymo atveju išmestu klaidą. 
+                // Tam reikalingas try catch blokas.
                 BalanceSPort.Close();
             }
             catch (Exception) { }
@@ -327,7 +321,7 @@ namespace BalanceToPC_2._1
         }
 
         /// <summary>
-        ///     Šis metodas sugeneruos MessageBox langą vartotojui su gauta informacija.
+        ///     Šis metodas sugeneruoja MessageBox langą vartotojui su gauta informacija.
         /// </summary>
         private void MessageBoxCreator(string Message, string Title, MessageBoxIcon messageIcon)
         {
@@ -361,18 +355,18 @@ namespace BalanceToPC_2._1
             bool NewComPort = false;
             bool AutoENTER = false;
 
-            // Get data
+            // Gauti nustatymuose įrašytas reikšmes
             string SelectComPort = (string)ComPortsList.SelectedItem;
             string cupWeight = CupWeight.Text;
 
-            // Check or its not null or empty. If yes, inform and run away
+            // Patikrinti ar reikšmė nėra tuščia/lygi null.
             if (String.IsNullOrEmpty(SelectComPort))
             {
                 MessageBoxCreator("Nepasirinktas COM portas", "Įspėjimas", MessageBoxIcon.Information);
                 return;
             }
 
-            // If cup weight is empty, inform and run away
+            // Patikrinti ar reikšmė nėra tuščia/lygi null.
             if (String.IsNullOrEmpty(cupWeight))
             {
                 MessageBoxCreator("Neįrašyta taurelės reišmė", "Įspėjimas", MessageBoxIcon.Information);
@@ -380,7 +374,7 @@ namespace BalanceToPC_2._1
             }
             else
             {
-                // Vadinasi irasyta reiksme, patikrinam ar ji konvertuojasi, jei ne, ispejam vartotoja ir iseinam nieko neissaugoje.
+                // Reikšmė įrašyta, patikrinti ar ji konvertuojasi į float kintamojo tipą.
                 if (!float.TryParse(cupWeight, out fcupWeight))
                 {
                     MessageBoxCreator("Netinkamai irasytas taureles svoris", "Įspėjimas", MessageBoxIcon.Information);
@@ -388,7 +382,7 @@ namespace BalanceToPC_2._1
                 }
             }
 
-            // Check auto enter state
+            // Patikrinti AutoENTER reikšmę
             if (AutoEnterBox.Checked)
                 AutoENTER = true;
             else
@@ -396,19 +390,19 @@ namespace BalanceToPC_2._1
 
             try
             {
-                // "you either need to use a try/finally or a using statement. You don't need both to release resourses!"
                 using (ConfigFile = new StreamWriter(_exePath + "\\" + Const.ConfigFile))
                 {
-                    // Tikrinam, ar pasikeite COM portas. Jeigu taip, irasom nauja ir perkraunam programos status..
+                    // Patikrinti, ar pasikeitė COM portas. Jeigu taip, irašom naują ir perkraunam programos state'us
                     if (!SelectComPort.Equals(BalanceParam.Port))
                         NewComPort = true;
 
-                    // Irasom pasikeitimus tik nustatymuose, strukturoj ne. Perkrovus irasys juos.
+                    // Įrašyti būtina betkokiu atveju, kad peršokčiau į kitą eilutę.
                     ConfigFile.WriteLine(SelectComPort);
 
                     if (!cupWeight.Equals(BalanceParam.CupWeight))
                         BalanceParam.CupWeight = float.Parse(cupWeight);
 
+                    // Įrašyti būtina betkokiu atveju, kad peršokčiau į kitą eilutę.
                     ConfigFile.WriteLine(cupWeight);
 
                     if(!AutoENTER.Equals(BalanceParam.AutoENTER))
@@ -418,7 +412,7 @@ namespace BalanceToPC_2._1
                     }
                 }
 
-                // Irasyta sekmingai, galima minimalizuoti langa.
+                // Irašyta sėkmingai, galima minimalizuoti langą.
                 this.WindowState = FormWindowState.Minimized;
                 this.ShowInTaskbar = false;
                 this.Hide();
@@ -435,7 +429,7 @@ namespace BalanceToPC_2._1
                     }
                     catch (Exception) { }
 
-                    //initialized port and rx data state
+                    // Programos state'us pakeisti į pradinius
                     CurrPortState = PortState.CheckFiles;
                     DataReceiv_st = RxState.Start;
                 }
@@ -447,15 +441,15 @@ namespace BalanceToPC_2._1
         }
 
         /// <summary>
-        ///     Patikrinti ar duomenys neklaidinti.
-        ///     Konvertuoti duomenys ir gauti float kintamuoju.
-        ///     Išsiųsti duomenys kur vartotojui reikia.
+        ///     Preliminaliai patikrinti ar duomenys neklaidinti. Įdealu būtų CRC, tačiau svartyklės jo negeneruoja.
+        ///     Konvertuoti duomenys į float kintamąjį.
+        ///     Išsiųsti duomenys kur vartotojas nori.
         /// </summary>
-        /// <param name="BalanceParam">Perkeliama struktūra, su gautais nustatymais</param>
+        /// <param name="BalanceParam">Perkeliama struktūra, su įrašytais nustatymais</param>
         /// <returns>Grąžina statusą int kintamuoju arba išmeta klaidą</returns>
         private int WriteMeasurement(Parameters BalanceParam)
         {
-            // to check, that the hole package come
+            // Jei duomenų paketo paskutiniai byte yra CR ir LF, galima teigti, kad gautas duomenų paketas - OK.
             if (_RxData[Const.CR] == Const.CarrReturn && _RxData[Const.LF] == Const.NewLine)
             {
                 float fWeight;
@@ -467,39 +461,38 @@ namespace BalanceToPC_2._1
 
                 SendKeys.SendWait(fWeight.ToString());
 
-                // Only if AutoEnter is checked
+                // Tik jei AutoENTER true
                 if(BalanceParam.AutoENTER)
                     SendKeys.SendWait("{ENTER}");
 
                 return Const.OK;
             }
             else {
-                //throw new ArgumentException("Klaidingas duomenų paketas");
                 return Const.IncorrDataPack;
             }
         }
 
         /// <summary>
-        ///     Iėškoma ar yra kompiuteryje COM portų, jeigu randama, tikrinama ar atitinka nustatymuose parašytam portui
+        ///     Iėškoma ar yra kompiuteryje veikiančių COM portų, jeigu randama,
+        ///     tikrinama ar vienas jų atitinka nustatymuose įrašytui portui
         /// </summary>
-        /// <param name="PortName">Iš "BalanceInitFile.txt" failo gauto COM porto pavadinimas</param>
-        /// <returns>Viena iš 3 galimų reikšmių int kintamojo pavidalu: Nerasta portų, Portas (atitinkantis svarstyklių portą) rastas, nerastas</returns>
+        /// <param name="PortName">Iš "ConfigFile.txt" failo gautas COM porto pavadinimas</param>
+        /// <returns>Vieną iš 3 galimų reikšmių int kintamojo pavidalu: Nerasta portų, portas (atitinkantis svarstyklių portą) rastas arba nerastas</returns>
         public int SearchingPort(string PortName)
         {
-            // Get all available ports name
+            // Gauti visus COM portus esančius kompiuteryje
             string[] ports = SerialPort.GetPortNames();
 
             if (ports == null || ports.Length == 0)
-                // Not found
                 return Const.NoPorts;
 
-            // Some port found
+            // Bent vienas portas rastas
             else
             {
-                // Check that in current list is balance port
+                // Patikrinti ar kuris sutampa su svarstyklių COM portu
                 foreach (string port in ports)
                 {
-                    // OrdinalIgnoreCase - which will match "com", "Com", and "COM". This one, most save method
+                    // OrdinalIgnoreCase - "com", "Com", and "COM" būtų priskirti kaip lygus vienas kitam.
                     if (port.Equals(PortName, StringComparison.OrdinalIgnoreCase))
                         return Const.PortFound;
                 }
@@ -516,7 +509,8 @@ namespace BalanceToPC_2._1
         /// <returns>Prisijungimo atveju statusą jog prisijungta, klaidos atveju išmes klaidą</returns>
         private int ConnectToPort(string PortName)
         {
-            // Sutas reikalingas tam atvejui, jeigu patektum i AccessDenied state ir kiekviena karta bandant jungtis, nereiketu is naujo konfiguruoti Serial porto
+            // Sutas reikalingas tam atvejui, jeigu patektum i AccessDenied state ir kiekviena kartą bandant jungtis,
+            //nereikėtu iš naujo konfiguruoti Serial porto
             if (CurrPortState == PortState.Connecting)
             {
                 BalanceSPort = new SerialPort(PortName, 9600, Parity.None, 7, StopBits.One);
@@ -599,14 +593,14 @@ namespace BalanceToPC_2._1
 
         /// <summary>
         ///     Norint išvengti klaidų, ribojami kokios reikšmes galima įrašyti i text box'ą. 
-        ///     Galimi tik 7 skaičiai ir vienas kablelis.
+        ///     Galimi tik skaičiai ir vienas kablelis.
         /// </summary>
         private void CupWeight_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar) && (e.KeyChar != ','))
                 e.Handled = true;
 
-            //Set Handled to true to cancel the KeyPress event, because we need only one ","
+            // Jei jau padėtas kablelis, nustatyti "Handled = true" atšaukti KeyPress event'ą
             if ((e.KeyChar == ',') && (sender as System.Windows.Forms.TextBox).Text.IndexOf(',') > -1)
                 e.Handled = true;
         }
@@ -621,7 +615,7 @@ namespace BalanceToPC_2._1
         /// </summary>
         private int GetProgramParamValues()
         {
-            // Get path, which will be global
+            // Gauti path'ą, jis globalus kintamasis, visiems prieinamas
             _exePath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
 
             //Delete all records from log file (jokiu patikrinimų nėra, nes jeigu net ir nebutu rastas failas, jis tokiu atveju būtų sukurtas iš naujo)
@@ -666,7 +660,7 @@ namespace BalanceToPC_2._1
                                 break;
 
                             case Const.AutoENTER:
-                                // If any error occur, make value false.
+                                // Klaidos atveju, AutoENTER priskirti false
                                 if (String.IsNullOrEmpty(Param))
                                     BalanceParam.AutoENTER = false;
                                 else
@@ -687,14 +681,14 @@ namespace BalanceToPC_2._1
         }
 
         /// <summary>
-        ///     Atskirti,ar tai bandoma langa uzdaryti ar norima programa isjunkti.
+        ///     Būtina atskirti, ar tai bandoma nustatymų langą uždaryti ar norima programa išjungti.
         /// </summary>
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // Jeigu tik norima uždaryti nustatymų langą, atšaukti Winform išjungimą priskiriant e.cancel = true
             if (!_ProgramExit)
                 e.Cancel = true;
 
-            // Cia jeigu taip butu, kad langas atidarytas ir uzdaroma programa, patikrinti pirma
             this.WindowState = FormWindowState.Minimized;
             this.ShowInTaskbar = false;
             this.Hide();
